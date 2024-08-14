@@ -65,6 +65,16 @@
           <% end %>
 
           <%= content_tag :div, class: "tiptap__button-group" do %>
+            <%= button_tag type: "button", disabled: true, class: "tiptap__button tiptap__button--undo", data: { action: "click->tiptap-field#undo" } do %>
+              <%= helpers.svg("avo/editor-undo") %>
+            <% end %>
+
+            <%= button_tag type: "button", disabled: true, class: "tiptap__button tiptap__button--redo", data: { action: "click->tiptap-field#redo" } do %>
+              <%= helpers.svg("avo/editor-redo") %>
+            <% end %>
+          <% end %>
+
+          <%= content_tag :div, class: "tiptap__button-group" do %>
             <%= button_tag type: "button", disabled: true, class: "tiptap__button tiptap__button--link", data: { action: "click->tiptap-field#toggleLinkArea" } do %>
               <%= helpers.svg("avo/editor-link") %>
             <% end %>

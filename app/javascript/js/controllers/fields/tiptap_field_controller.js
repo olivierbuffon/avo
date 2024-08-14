@@ -5,6 +5,7 @@ import Bold from "@tiptap/extension-bold";
 import BulletList from "@tiptap/extension-bullet-list";
 import Document from "@tiptap/extension-document";
 import HardBreak from "@tiptap/extension-hard-break";
+import History from "@tiptap/extension-history";
 import Italic from "@tiptap/extension-italic";
 import Link from "@tiptap/extension-link";
 import ListItem from "@tiptap/extension-list-item";
@@ -48,6 +49,7 @@ export default class extends Controller {
         BulletList,
         Document,
         HardBreak,
+        History,
         Italic,
         Link.configure({
           openOnClick: false,
@@ -106,6 +108,10 @@ export default class extends Controller {
       this.buttons[action].disabled =
         this.editor.view.state.selection.empty && !isActive;
     }
+
+    if (action === "undo" || action === "redo") {
+      this.buttons[action].disabled = !this.editor.can()[action]();
+    }
   };
 
   updateLinkArea = () => {
@@ -146,12 +152,17 @@ export default class extends Controller {
   italic = () => this.toggleMark("toggleItalic", "italic");
   underline = () => this.toggleMark("toggleUnderline", "underline");
   strike = () => this.toggleMark("toggleStrike", "strike");
+
   textAlignLeft = () => this.setTextAlign("left");
   textAlignCenter = () => this.setTextAlign("center");
   textAlignRight = () => this.setTextAlign("right");
   textAlignJustify = () => this.setTextAlign("justify");
+
   unorderedList = () => this.toggleList("toggleBulletList", "bulletList");
   orderedList = () => this.toggleList("toggleOrderedList", "orderedList");
+
+  undo = () => this.editor.chain().focus().undo().run();
+  redo = () => this.editor.chain().focus().redo().run();
 
   toggleMark = (method, action) => {
     this.editor.chain().focus()[method]().run();
