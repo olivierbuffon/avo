@@ -1,21 +1,25 @@
 import { Controller } from "@hotwired/stimulus";
-import { Editor } from "@tiptap/core";
+import { initializeEditor } from "./tiptap/editor_initializer";
+import { initializeToolbar } from "./tiptap/toolbar_initializer";
+import { bold, italic, underline, strike } from "./tiptap/text_formatting";
+import { unorderedList, orderedList } from "./tiptap/lists";
+import { updateAllButtonsStates } from "./tiptap/editor_helpers";
 
-import Bold from "@tiptap/extension-bold";
-import BulletList from "@tiptap/extension-bullet-list";
-import Document from "@tiptap/extension-document";
-import HardBreak from "@tiptap/extension-hard-break";
-import History from "@tiptap/extension-history";
-import Italic from "@tiptap/extension-italic";
-import Link from "@tiptap/extension-link";
-import ListItem from "@tiptap/extension-list-item";
-import OrderedList from "@tiptap/extension-ordered-list";
-import Paragraph from "@tiptap/extension-paragraph";
-import Placeholder from "@tiptap/extension-placeholder";
-import Strike from "@tiptap/extension-strike";
-import Text from "@tiptap/extension-text";
-import TextAlign from "@tiptap/extension-text-align";
-import Underline from "@tiptap/extension-underline";
+import {
+  textAlignLeft,
+  textAlignCenter,
+  textAlignRight,
+  textAlignJustify,
+} from "./tiptap/text_alignment";
+
+import {
+  preventEnter,
+  toggleLinkArea,
+  setLink,
+  unsetLink,
+  updateLinkArea,
+  updateLinkButtonState,
+} from "./tiptap/links";
 
 export default class extends Controller {
   static targets = ["editor", "controller", "input"];
@@ -24,6 +28,10 @@ export default class extends Controller {
     this.initElements();
     this.initEditor();
     this.initToolbar();
+  }
+
+  disconnect() {
+    this.editor.destroy();
   }
 
   initElements = () => {
@@ -42,56 +50,16 @@ export default class extends Controller {
   };
 
   initEditor = () => {
-    this.editor = new Editor({
-      element: this.editorTarget,
-      extensions: [
-        Bold,
-        BulletList,
-        Document,
-        HardBreak,
-        History,
-        Italic,
-        Link.configure({
-          openOnClick: false,
-        }),
-        ListItem,
-        OrderedList,
-        Paragraph,
-        Placeholder.configure({
-          placeholder: this.inputTarget.placeholder,
-        }),
-        Strike,
-        Text,
-        TextAlign.configure({
-          types: ["heading", "paragraph"],
-        }),
-        Underline,
-      ],
-      type: "HTML",
-      content: this.inputTarget.value,
-      onUpdate: this.onUpdate,
-      onSelectionUpdate: this.onSelectionUpdate,
-    });
+    this.editor = initializeEditor(
+      this.editorTarget,
+      this.inputTarget,
+      this.onUpdate,
+      this.onSelectionUpdate
+    );
   };
 
   initToolbar = () => {
-    Object.values(this.buttons).forEach((button) => {
-      button.addEventListener("click", this.handleButtonClick);
-    });
-  };
-
-  onUpdate = () => {
-    this.inputTarget.value = this.editor.getHTML();
-  };
-
-  onSelectionUpdate = () => {
-    Object.keys(this.buttons).forEach((action) => {
-      const isActive = this.editor.isActive(this.convertActionToObject(action));
-      this.toggleButtonState(action, isActive);
-    });
-
-    this.updateLinkArea();
-    this.updateLinkButtonState();
+    initializeToolbar(this.buttons, this.handleButtonClick);
   };
 
   handleButtonClick = (event) => {
@@ -101,140 +69,46 @@ export default class extends Controller {
     }
   };
 
-  toggleButtonState = (action, isActive) => {
-    this.buttons[action].classList.toggle("tiptap__button--selected", isActive);
-
-    if (action === "link") {
-      this.buttons[action].disabled =
-        this.editor.view.state.selection.empty && !isActive;
-    }
-
-    if (action === "undo" || action === "redo") {
-      this.buttons[action].disabled = !this.editor.can()[action]();
-    }
+  onUpdate = () => {
+    this.inputTarget.value = this.editor.getHTML();
   };
 
-  updateLinkArea = () => {
-    const isLinkActive = this.editor.isActive("link");
-    this.linkArea.classList.toggle("hidden", !isLinkActive);
-    this.unsetButton.classList.toggle("hidden", !isLinkActive);
-    this.linkInput.value = isLinkActive
-      ? this.editor.getAttributes("link").href
-      : "";
-  };
+  onSelectionUpdate = () => {
+    updateAllButtonsStates(this.editor, this.buttons);
 
-  updateButtonState = (action) => {
-    const actionString =
-      typeof action === "object" ? this.convertObjectToAction(action) : action;
-
-    this.buttons[actionString].classList.toggle(
-      "tiptap__button--selected",
-      this.editor.isActive(action)
+    updateLinkArea(
+      this.editor,
+      this.linkArea,
+      this.unsetButton,
+      this.linkInput
     );
+
+    updateLinkButtonState(this.editor, this.buttons);
   };
 
-  updateLinkButtonState = () => {
-    const isLinkActive = this.editor.isActive("toggleLinkArea");
-    const isSelectionEmpty = this.editor.view.state.selection.empty;
-    this.buttons["toggleLinkArea"].disabled = isSelectionEmpty && !isLinkActive;
-  };
+  // Text formatting
+  bold = () => bold(this.editor, this.buttons);
+  italic = () => italic(this.editor, this.buttons);
+  underline = () => underline(this.editor, this.buttons);
+  strike = () => strike(this.editor, this.buttons);
 
-  updateButtonGroupState = (action) => {
-    if (action === "textAlign") {
-      this.updateButtonState({ textAlign: "left" });
-      this.updateButtonState({ textAlign: "center" });
-      this.updateButtonState({ textAlign: "right" });
-      this.updateButtonState({ textAlign: "justify" });
-    }
-  };
+  // Text alignment
+  textAlignLeft = () => textAlignLeft(this.editor, this.buttons);
+  textAlignCenter = () => textAlignCenter(this.editor, this.buttons);
+  textAlignRight = () => textAlignRight(this.editor, this.buttons);
+  textAlignJustify = () => textAlignJustify(this.editor, this.buttons);
 
-  bold = () => this.toggleMark("toggleBold", "bold");
-  italic = () => this.toggleMark("toggleItalic", "italic");
-  underline = () => this.toggleMark("toggleUnderline", "underline");
-  strike = () => this.toggleMark("toggleStrike", "strike");
+  // Lists
+  unorderedList = () => unorderedList(this.editor, this.buttons);
+  orderedList = () => orderedList(this.editor, this.buttons);
 
-  textAlignLeft = () => this.setTextAlign("left");
-  textAlignCenter = () => this.setTextAlign("center");
-  textAlignRight = () => this.setTextAlign("right");
-  textAlignJustify = () => this.setTextAlign("justify");
+  // Links
+  toggleLinkArea = (event) => toggleLinkArea(this.editor, this.linkArea, event);
+  setLink = () => setLink(this.editor, this.linkInput, this.unsetButton);
+  unsetLink = () => unsetLink(this.editor, this.unsetButton);
+  preventEnter = (event) => preventEnter(event);
 
-  unorderedList = () => this.toggleList("toggleBulletList", "bulletList");
-  orderedList = () => this.toggleList("toggleOrderedList", "orderedList");
-
+  // History
   undo = () => this.editor.chain().focus().undo().run();
   redo = () => this.editor.chain().focus().redo().run();
-
-  toggleMark = (method, action) => {
-    this.editor.chain().focus()[method]().run();
-    this.updateButtonState(action);
-  };
-
-  setTextAlign = (align) => {
-    this.editor.chain().focus().setTextAlign(align).run();
-    this.updateButtonGroupState("textAlign");
-  };
-
-  toggleList = (method, action) => {
-    this.editor.chain().focus()[method]().run();
-    this.updateButtonState(action);
-  };
-
-  toggleLinkArea = (event) => {
-    const button = event.target.closest(".tiptap__button");
-
-    if (button.classList.contains("tiptap__button--selected")) {
-      this.linkArea.classList.add("hidden");
-      button.classList.remove("tiptap__button--selected");
-    } else if (!this.editor.view.state.selection.empty) {
-      this.linkArea.classList.remove("hidden");
-      button.classList.add("tiptap__button--selected");
-    }
-  };
-
-  setLink = () => {
-    const url = this.linkInput.value;
-
-    if (url) {
-      this.editor
-        .chain()
-        .focus()
-        .extendMarkRange("link")
-        .setLink({ href: url })
-        .run();
-      this.unsetButton.classList.remove("hidden");
-    } else {
-      this.unsetLink();
-    }
-  };
-
-  unsetLink = () => {
-    this.editor.chain().focus().extendMarkRange("link").unsetLink().run();
-    this.unsetButton.classList.add("hidden");
-  };
-
-  preventEnter = (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-    }
-  };
-
-  convertObjectToAction = (actionObject) => {
-    return Object.keys(actionObject)[0].concat(
-      this.capitalize(Object.values(actionObject)[0])
-    );
-  };
-
-  convertActionToObject = (actionString) => {
-    return actionString.includes("textAlign")
-      ? { textAlign: actionString.replace("textAlign", "").toLowerCase() }
-      : actionString;
-  };
-
-  capitalize = (string) => {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-  };
-
-  disconnect() {
-    this.editor.destroy();
-  }
 }
