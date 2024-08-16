@@ -12,12 +12,14 @@ import Strike from "@tiptap/extension-strike";
 import Text from "@tiptap/extension-text";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
+import History from "@tiptap/extension-history";
 
 export const extensions = (inputTarget) => [
   Bold,
   BulletList,
   Document,
   HardBreak,
+  History,
   Italic,
   Link.configure({ openOnClick: false }),
   ListItem,
