@@ -30,6 +30,10 @@ const toggleButtonState = (editor, buttons, action, isActive) => {
   if (action === "link") {
     buttons[action].disabled = editor.view.state.selection.empty && !isActive;
   }
+
+  if (action === "undo" || action === "redo") {
+    buttons[action].disabled = !editor.can()[action]();
+  }
 };
 
 const convertObjectToAction = (actionObject) => {
