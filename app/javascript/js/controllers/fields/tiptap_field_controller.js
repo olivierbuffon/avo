@@ -4,6 +4,7 @@ import { initializeToolbar } from "./tiptap/toolbar_initializer";
 import { bold, italic, underline, strike } from "./tiptap/text_formatting";
 import { unorderedList, orderedList } from "./tiptap/lists";
 import { updateAllButtonsStates } from "./tiptap/editor_helpers";
+import { undo, redo } from "./tiptap/history";
 
 import {
   textAlignLeft,
@@ -109,6 +110,6 @@ export default class extends Controller {
   preventEnter = (event) => preventEnter(event);
 
   // History
-  undo = () => this.editor.chain().focus().undo().run();
-  redo = () => this.editor.chain().focus().redo().run();
+  undo = () => undo(this.editor);
+  redo = () => redo(this.editor);
 }
